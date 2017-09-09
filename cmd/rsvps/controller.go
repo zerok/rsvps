@@ -54,7 +54,13 @@ func (c *controller) handleGetRSVPs(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	ctx := r.Context()
+	response := queryResposne{}
 	result := make(map[string]*EventRSVP)
+	knownProfiles := make(map[int]struct{})
+	s := Summary{
+		Profiles:  make(map[string]Profile),
+		AllYesIDs: make([]string, 0, 0),
+	}
 	// Make sure that the meetups are in the list of allowed meetups.
 	for _, meetup := range req.Meetups {
 		select {
@@ -97,8 +103,24 @@ func (c *controller) handleGetRSVPs(w http.ResponseWriter, r *http.Request) {
 			c.handleInternalError(w, "unexpected type found in cache", nil)
 			return
 		}
+		s.AllYesGuests += rsvp.YesGuestCount
+		for _, m := range rsvp.YesMembers {
+			memberID := fmt.Sprintf("%d", m.ID)
+			if _, found := knownProfiles[m.ID]; found {
+				continue
+			}
+			s.AllYesIDs = append(s.AllYesIDs, memberID)
+			s.Profiles[memberID] = Profile{
+				Name:     m.Name,
+				ID:       memberID,
+				ThumbURL: m.Photo.ThumbLink,
+			}
+			knownProfiles[m.ID] = struct{}{}
+		}
 		result[meetup] = &EventRSVP{RSVP: rsvp}
 	}
+	response.Meetups = result
+	response.Summary = s
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	json.NewEncoder(w).Encode(response)
 }

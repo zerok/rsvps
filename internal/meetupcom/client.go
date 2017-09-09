@@ -48,6 +48,8 @@ func (c *Client) GetEventRSVP(ctx context.Context, urlName, eventID string) (*Ev
 		switch r.Response {
 		case "yes":
 			result.YesCount = result.YesCount + 1 + r.Guests
+			result.YesGuestCount += r.Guests
+			result.YesMembers = append(result.YesMembers, r.Member)
 		case "no":
 			result.NoCount++
 		case "waitlist":
